@@ -1,0 +1,26 @@
+#!/bin/bash
+
+#variables to change#################
+
+url=https://genomics.rcac.purdue.edu/users/hoagland/hr03702_seque-lisdt-15-Dec/summary_stats.html
+password=kernel:fettle
+
+seq_filter=Unaligned_filtered
+
+####################################
+
+wget $url --user=hoagland --password=$password
+
+sed 's/\(href="[^"]*"\)/\n\1/g' summary_stats.html > file.txt
+sed 's/[^"]*"\([^"]*\)".*/\1/' file.txt > new_file.txt
+sed '/'"${seq_filter}"'/!d' new_file.txt > final.txt
+
+
+short_url=`sed 's/summary_stats.html*//' <<< $url`
+
+while read file; do 
+	download_link="$short_url"/"$file"
+	wget $download_link --user=hoagland --password=$password
+done < final.txt
+
+rm file.txt new_file.txt final.txt summary_stats.html

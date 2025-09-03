@@ -1,0 +1,68 @@
+#!/bin/bash
+
+#SBATCH -n 30
+#SBATCH -t 10:00:00 
+#SBATCH -A aghla
+#SBATCH --mem=50000M
+#SBATCH --mail-user=berry106@purdue.edu
+#SBATCH --mail-type=BEGIN,END,FAIL
+
+module purge
+module load biocontainers
+module load qiime2
+module list
+
+
+####  variables to change  ######
+
+project="proj_name"    #no spaces before or after equal sign!
+community="replace"   
+
+trim_forward=20   #front of forward strand
+trim_reverse=20
+trunc_forward=240
+trunc_reverse=230  #back of reverse strand
+
+
+max_depth=200000
+rarefication=21000
+
+
+##############################
+
+project_community=${project}_${community}
+
+qiime dada2 denoise-paired \
+  --p-n-threads 2 \
+  --i-demultiplexed-seqs demuxed_"$project_community".qza \
+  --p-trim-left-f "$trim_forward" \
+  --p-trim-left-r "$trim_reverse" \
+  --p-trunc-len-f "$trunc_forward" \
+  --p-trunc-len-r "$trunc_reverse" \
+  --o-table seq-table_"$project_community".qza \
+  --o-representative-sequences rep-seqs_"$project_community".qza \
+  --o-denoising-stats stats-dada2_"$project_community".qza 
+  
+qiime metadata tabulate \
+  --m-input-file stats-dada2_"$project_community".qza \
+  --o-visualization stats-dada2_"$project_community".qzv
+
+qiime feature-table summarize \
+  --i-table seq-table_"$project_community".qza \
+  --o-visualization seq-table_"$project_community".qzv \
+  --m-sample-metadata-file "$project_community"_MetadataFile.tsv     
+
+qiime phylogeny align-to-tree-mafft-fasttree \
+  --i-sequences rep-seqs_"$project_community".qza \
+  --o-alignment aligned-rep-seqs_"$project_community".qza \
+  --o-masked-alignment masked-aligned-rep-seqs_"$project_community".qza \
+  --o-tree unrooted-tree_"$project_community".qza \
+  --o-rooted-tree rooted-tree_"$project_community".qza
+
+qiime diversity alpha-rarefaction \
+  --i-table seq-table_"$project_community".qza \
+  --i-phylogeny rooted-tree_"$project_community".qza \
+  --p-max-depth "$max_depth" \
+  --m-metadata-file "$project_community"_MetadataFile.tsv \
+  --o-visualization alpha-rarefaction_"$rarefication"_"$project_community".qzv
+  

@@ -1,0 +1,128 @@
+#!/bin/bash
+
+#SBATCH -n 10
+#SBATCH -t 01:00:00 
+#SBATCH -A aghla
+#SBATCH --mail-user=berry106@purdue.edu
+#SBATCH --mail-type=BEGIN,END,FAIL
+
+module purge
+module load biocontainers
+module load qiime2
+
+
+####  variables to change  #######
+
+project="Nanoplastic"
+
+Metadata_File="SampleMetadata.txt"    #name of file that contains sample metadata
+sequences="filtered"          #if using raw reads; comment out this line or write sequences=""
+
+declare -A community_dict=(   #set up the dictionary
+	[Bact]=ba             #[fullname]=community
+	#[Fungi]=fu
+	#[Nem]=ne      
+  )
+
+
+#################################
+
+for community_fullname in "${!community_dict[@]}"       #for each fullname...
+ do 
+  community="${community_dict[$community_fullname]}"    #get matching fullname-community pair
+  
+  project_community=${project}_${community_fullname}
+  
+  #--Move Files to folders------------
+  mkdir -p "$project_community"/"fastafiles_"$community
+  mv -t "$project_community"/"fastafiles_"$community `ls|grep $community`
+  
+  
+  #--Create Manifest File-------------------
+  cd ./"$project_community"
+
+  tail -n +2 ../"$Metadata_File" | stdbuf -o0 cut -f 1 > samples.txt   #get only the samples
+
+  echo sample-id > sample_list.txt                                     #add sample-id column
+  while read line; do
+    echo "$line"_"$community" >> sample_list.txt                       #append outputs to sample_list
+    echo _"$line"-"$community"_ >> samples_for_metadata.txt            #create sample match for sequencing "_1-ba_"
+  done < samples.txt                                                   #sample input file
+
+
+  echo forward-absolute-filepath > R1.txt                   #add forward filepath column
+  echo reverse-absolute-filepath > R2.txt
+  
+  for files in fastafiles_$community/*                      #loop over every file in fasta_community folder
+    do
+	path=$(readlink -f "$files")                        #get the absolute file path
+	if [[ "$files" == *"R1_"$sequences* ]]; then        #filter R1 and R2
+		echo "$path" >> R1.txt                      #sort R1 sequences into R1.txt
+	elif [[ "$files" == *"R2_"$sequences* ]]; then
+		echo "$path" >> R2.txt
+	fi
+    done
+
+    #--Sort Samples-------
+  R1_temp_file="R1_filtered.txt"           #create a file to append the sorted R1.txt samples to
+  > $R1_temp_file
+  R2_temp_file="R2_filtered.txt"
+  > $R2_temp_file
+  temp_file="temp_file.txt"
+  > $temp_file
+  
+  
+  echo forward-absolute-filepath > R1_filtered.txt               #add forward filepath header
+  echo reverse-absolute-filepath > R2_filtered.txt  
+  
+
+  while IFS= read -r samples; do   
+  while IFS=$'\t' read -r R1_samp R2_samp; do
+	if grep "$samples" <<< "$R1_samp" && grep "$samples" <<< "$R2_samp"; then      #if R1 and R2 match sample name
+        	echo "$R1_samp" >> $R1_temp_file                    #if there is a match - append to R1_temp_file
+        	echo "$R2_samp" >> $R2_temp_file   
+        else
+        	echo "$R1_samp" >> $temp_file
+        	echo "$R2_samp" >> $temp_file
+        fi
+  done < <(paste R1.txt R2.txt)
+  done < samples_for_metadata.txt
+  
+  
+  paste sample_list.txt R1_filtered.txt R2_filtered.txt > "$project_community"_ManifestFile.txt    #create final ManifestFile
+  
+  #--Create Metadata File--------------------
+  cut -f2- ../"$Metadata_File" > metadata_vars.txt
+  paste sample_list.txt metadata_vars.txt > "$project_community"_MetadataFile.tsv   #create final MetadataFile
+
+  rm sample_list.txt R1.txt R2.txt metadata_vars.txt samples.txt 
+  rm R1_filtered.txt R2_filtered.txt samples_for_metadata.txt temp_file.txt
+
+
+
+#--demux------------------------  
+qiime tools import \
+  --type 'SampleData[PairedEndSequencesWithQuality]' \
+  --input-path "$project_community"_ManifestFile.txt \
+  --output-path demuxed_$project_community.qza \
+  --input-format PairedEndFastqManifestPhred33V2 \
+
+qiime demux summarize \
+  --i-data demuxed_$project_community.qza \
+  --o-visualization demuxed_$project_community.qzv
+
+
+##--copy Dada2 to folder------------------
+ cp /depot/lhoaglan/data/'Lily 2023'/QiimePipeline/QiimeScripts/02_Dada2_Master ./02_Dada2_$community_fullname                       #copy pipeline master files to subfolders
+ sed -i "s/proj_name/$project/g" 02_Dada2_$community_fullname
+ sed -i "s/replace/$community_fullname/g" 02_Dada2_$community_fullname
+ 
+#copy taxonomy and filters to folder---------------- 
+ cp /depot/lhoaglan/data/'Lily 2023'/QiimePipeline/QiimeScripts/03_Taxonomy_Master ./03_Taxonomy_$community_fullname
+ sed -i "s/proj_name/$project/g" 03_Taxonomy_$community_fullname
+ sed -i "s/replace/$community_fullname/g" 03_Taxonomy_$community_fullname
+
+
+ cd ../
+ 
+done

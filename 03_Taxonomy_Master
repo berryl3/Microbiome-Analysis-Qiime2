@@ -1,0 +1,49 @@
+#!/bin/bash
+
+#SBATCH -n 10
+#SBATCH -t 0-0:30:00 
+#SBATCH -A standby
+#SBATCH --mem=60000M
+#SBATCH --mail-user=berry106@purdue.edu
+#SBATCH --mail-type=BEGIN,END,FAIL
+
+module purge
+module load biocontainers
+module load qiime2
+module list
+echo "backend: Agg" > ~/.config/matplotlib/matplotlibrc
+
+####  variables to change  ######
+
+project="proj_name"  
+community="replace"   
+
+classifier="unite-ver9-99-classifier-29.11.2022.qza"    #choose classifier from list
+  #silva138_AB_V3-V4_classifier.qza          - 16S Classifier
+  #unite-ver9-99-classifier-29.11.2022.qza   - ITS Classifier
+
+
+##############################
+
+project_community=${project}_${community}
+
+cp /depot/lhoaglan/data/'Lily 2023'/QiimePipeline/Classifiers/"$classifier" .  #copy correct classifer to directory
+
+qiime feature-classifier classify-sklearn \
+  --i-classifier "$classifier" \
+  --i-reads rep-seqs_"$project_community".qza \
+  --o-classification taxonomy_"$project_community".qza
+
+qiime metadata tabulate \
+  --m-input-file taxonomy_"$project_community".qza \
+  --o-visualization taxonomy_"$project_community".qzv
+
+qiime taxa barplot \
+  --i-table seq-table_"$project_community".qza \
+  --i-taxonomy taxonomy_"$project_community".qza \
+  --m-metadata-file "$project_community"_MetadataFile.tsv \
+  --o-visualization taxa-bar-plots_"$project_community".qzv
+
+
+
+#sbatch Command-filter1
