@@ -1,33 +1,41 @@
 # Microbiome-Analysis-Qiime2
-
-Microbiome analysis with QIIME2
-May 2025
+### May 2025
 
 This code Downloads fasta files, demux, merges, and assigns taxonomy for paired end sequencing files
 
 
-######  Before Running Any Code   ##################
 
-Item 1:
-SampleMetadata File
- > User needs to create a file of your experiment's metadata
- > Note: In the sample-id column, don't include deliminators such as ba, ITS, bact, etc
-    > Should look like this m1
-    > Shouldn't look like m1-ITS or m1_ITS
- > See SampleMetadata.txt for example of how to format this file
+## Project Set Up
+> [!IMPORTANT]
+> Don't skip these steps!
 
+- [ ] Step 1: SampleMetadata File
+  - Create a file of your experiment's metadata
+  - In the sample-id column, do not include deliminators such as ba, ITS, bact, etc
+  > Examples:
+  >  - ✅ m1 
+  >  - ❌ m1-ITS or m1_ITS 
+ - See SampleMetadata.txt for example of how to format this file
 
-Item 2:
+   
+- [ ] Step 2: Create directory
 Copy the files 00_Download Fasta and 01_Manifest_Demux_Master to an empty folder
+
+- [ ] Step 3: Download Microbiome Classifiers
+      - Download 
+
+
+
 
 ###############
 
 
 
-00_Download_Fastq
- > Enter URL of samples in genomic.rcac database
-   > Update password if needed
- > Enter which sample type you want (Unaligned_filtered, Merged, etc)
+**00_Download_Fastq**
+
+Enter URL of samples in genomic.rcac database
+Update password if needed
+Enter which sample type you want (Unaligned_filtered, Merged, etc)
  
  
  
