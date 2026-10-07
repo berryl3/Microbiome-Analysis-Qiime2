@@ -3,7 +3,6 @@
 #variables to change#################
 
 url=https://genomics.rcac.purdue.edu/users/hoagland/hr03702_seque-lisdt-15-Dec/summary_stats.html
-password=kernel:fettle
 
 seq_filter=Unaligned_filtered
 
